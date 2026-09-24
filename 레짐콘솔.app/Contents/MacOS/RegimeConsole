@@ -1,0 +1,5 @@
+#!/bin/bash
+# 레짐 콘솔 더블클릭 런처. 실제 동작은 scripts/console_launch.sh 에 있다.
+# (로컬 서버 기동 + 크롬 앱 창 열기. tkinter를 쓰지 않는 이유는 그 스크립트 주석 참고.)
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+exec "$ROOT/scripts/console_launch.sh"

@@ -1,0 +1,673 @@
+<title>SOXX 레짐 콘솔</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground: #f4f5f4;
+    --panel: #ffffff;
+    --panel-2: #fbfbfa;
+    --line: #dfe1de;
+    --line-soft: #ebedeb;
+    --ink: #16191c;
+    --ink-2: #4e565d;
+    --ink-3: #7c858c;
+    --accent: #4338ca;
+    --accent-soft: #eceafc;
+    --up: #0f766e;
+    --up-soft: #dcf2ef;
+    --side: #b45309;
+    --side-soft: #fbeedb;
+    --down: #9f1239;
+    --down-soft: #fbe3e9;
+    --pos: #0f766e;
+    --neg: #9f1239;
+    --shadow: 0 1px 2px rgba(16,25,28,.05), 0 8px 24px -16px rgba(16,25,28,.18);
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0f1419;
+      --panel: #171d24;
+      --panel-2: #1c232b;
+      --line: #2b343d;
+      --line-soft: #232b33;
+      --ink: #eaeef1;
+      --ink-2: #a3aeb7;
+      --ink-3: #737f88;
+      --accent: #a5b4fc;
+      --accent-soft: #252a4a;
+      --up: #5eead4;
+      --up-soft: #103833;
+      --side: #fcd34d;
+      --side-soft: #3a2c0d;
+      --down: #fda4af;
+      --down-soft: #3d1420;
+      --pos: #5eead4;
+      --neg: #fda4af;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -16px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0f1419; --panel: #171d24; --panel-2: #1c232b;
+    --line: #2b343d; --line-soft: #232b33;
+    --ink: #eaeef1; --ink-2: #a3aeb7; --ink-3: #737f88;
+    --accent: #a5b4fc; --accent-soft: #252a4a;
+    --up: #5eead4; --up-soft: #103833;
+    --side: #fcd34d; --side-soft: #3a2c0d;
+    --down: #fda4af; --down-soft: #3d1420;
+    --pos: #5eead4; --neg: #fda4af;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -16px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); font-size: 15px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px 56px; }
+
+  /* ---------- 상단 ---------- */
+  header.top {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+    background: color-mix(in srgb, var(--ground) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .top-in { max-width: 1040px; margin: 0 auto; padding: 14px 16px 0; }
+  .brandrow { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  h1 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: -.01em; }
+  .stamp { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+  .tabs { display: flex; gap: 2px; margin-top: 12px; }
+  .tab {
+    appearance: none; border: 0; background: none; cursor: pointer;
+    font: 500 13.5px/1 var(--sans); color: var(--ink-2);
+    padding: 10px 14px 11px; border-bottom: 2px solid transparent;
+    border-radius: 6px 6px 0 0;
+  }
+  .tab:hover { color: var(--ink); background: var(--line-soft); }
+  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  /* ---------- 공통 ---------- */
+  section.pane { padding-block: 22px; }
+  .lede { color: var(--ink-2); font-size: 13.5px; margin: 0 0 18px; max-width: 62ch; }
+  .grid { display: grid; gap: 14px; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 720px) { .g3, .g2 { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 16px;
+  }
+  .card.raise { box-shadow: var(--shadow); }
+  .eyebrow {
+    font-size: 10.5px; font-weight: 600; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--ink-3); margin: 0 0 8px;
+  }
+  h2 { font-size: 14px; font-weight: 600; margin: 0 0 4px; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .big { font-family: var(--mono); font-size: 30px; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; }
+  .mid { font-family: var(--mono); font-size: 20px; font-weight: 600; line-height: 1.2; }
+  .sub { font-size: 12.5px; color: var(--ink-2); margin-top: 6px; }
+  .pos { color: var(--pos); }
+  .neg { color: var(--neg); }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+    border: 1px solid transparent;
+  }
+  .pill.up { background: var(--up-soft); color: var(--up); border-color: color-mix(in srgb, var(--up) 30%, transparent); }
+  .pill.side { background: var(--side-soft); color: var(--side); border-color: color-mix(in srgb, var(--side) 30%, transparent); }
+  .pill.down { background: var(--down-soft); color: var(--down); border-color: color-mix(in srgb, var(--down) 30%, transparent); }
+  .pill.flat { background: var(--line-soft); color: var(--ink-2); border-color: var(--line); }
+  .pill.act { background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+
+  /* 지시 배너 */
+  .order-banner {
+    border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--line));
+    background: linear-gradient(180deg, var(--accent-soft), var(--panel) 70%);
+    border-radius: 12px; padding: 18px; box-shadow: var(--shadow);
+  }
+  .order-banner .row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+  /* z 게이지 */
+  .gauge { margin-top: 14px; }
+  .gauge-track {
+    position: relative; height: 34px; border-radius: 8px;
+    background: var(--panel-2); border: 1px solid var(--line-soft); overflow: hidden;
+  }
+  .gz { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); }
+  .gz.mid { background: color-mix(in srgb, var(--ink-3) 60%, transparent); }
+  .gband { position: absolute; top: 0; bottom: 0; background: var(--accent-soft); opacity: .55; }
+  .gmark {
+    position: absolute; top: -3px; bottom: -3px; width: 3px; border-radius: 2px;
+    background: var(--accent);
+  }
+  .gauge-scale { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); margin-top: 5px; }
+
+  /* 표 */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 9px 12px; text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th {
+    font-size: 10.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--ink-3); background: var(--panel-2); border-bottom: 1px solid var(--line);
+  }
+  tbody tr + tr td { border-top: 1px solid var(--line-soft); }
+  td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* 세션 타임라인 */
+  .sess { display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
+  .sess-row { display: grid; grid-template-columns: 82px 1fr auto; align-items: center; gap: 10px; font-size: 12.5px; }
+  .sess-bar { height: 7px; border-radius: 4px; background: var(--line-soft); position: relative; overflow: hidden; }
+  .sess-fill { position: absolute; top: 0; bottom: 0; border-radius: 4px; background: color-mix(in srgb, var(--accent) 45%, transparent); }
+  .sess-row.live .sess-fill { background: var(--accent); }
+  .sess-row.live { font-weight: 600; }
+
+  /* 빈 상태 */
+  .empty {
+    border: 1px dashed var(--line); border-radius: 10px; padding: 26px 18px;
+    text-align: center; color: var(--ink-2); font-size: 13.5px; background: var(--panel-2);
+  }
+  .empty strong { color: var(--ink); font-weight: 600; }
+
+  .note { font-size: 12px; color: var(--ink-3); margin-top: 10px; line-height: 1.55; }
+  .note code, code { font-family: var(--mono); font-size: .93em; background: var(--line-soft); padding: 1px 5px; border-radius: 4px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; font-size: 13px; margin: 0; }
+  .kv dt { color: var(--ink-3); }
+  .kv dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  hr.rule { border: 0; border-top: 1px solid var(--line-soft); margin: 20px 0; }
+  .warn {
+    border-left: 3px solid var(--side); background: var(--side-soft);
+    padding: 11px 14px; border-radius: 0 8px 8px 0; font-size: 12.5px; color: var(--ink);
+  }
+  svg { display: block; max-width: 100%; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brandrow">
+      <h1>SOXX 레짐 콘솔</h1>
+      <span class="pill flat" id="modepill">읽기 전용</span>
+      <span class="pill flat" id="agepill" title="스냅샷 나이"></span>
+      <span class="stamp" id="stamp"></span>
+    </div>
+    <div class="tabs" role="tablist" aria-label="화면">
+      <button class="tab" role="tab" id="t-state" aria-controls="p-state" aria-selected="true">상태</button>
+      <button class="tab" role="tab" id="t-orders" aria-controls="p-orders" aria-selected="false">주문내역</button>
+      <button class="tab" role="tab" id="t-perf" aria-controls="p-perf" aria-selected="false">성과</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===================== 상태 ===================== -->
+  <section class="pane" id="p-state" role="tabpanel" aria-labelledby="t-state">
+    <div id="banner"></div>
+
+    <div class="grid g3" style="margin-top:14px">
+      <div class="card">
+        <p class="eyebrow">SOXX 종가</p>
+        <div class="big num" id="soxx">—</div>
+        <div class="sub" id="soxxsub"></div>
+      </div>
+      <div class="card">
+        <p class="eyebrow">레짐</p>
+        <div id="regimebox"></div>
+        <div class="sub" id="regimesub"></div>
+      </div>
+      <div class="card">
+        <p class="eyebrow">z-스코어</p>
+        <div class="big num" id="zval">—</div>
+        <div class="sub" id="zsub"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <p class="eyebrow">밴드 위치</p>
+      <div class="gauge">
+        <div class="gauge-track" id="gtrack">
+          <div class="gband" id="gband"></div>
+          <div class="gz" style="left:16.67%"></div>
+          <div class="gz mid" style="left:50%"></div>
+          <div class="gz" style="left:83.33%"></div>
+          <div class="gmark" id="gmark" style="left:50%"></div>
+        </div>
+        <div class="gauge-scale"><span>−3σ</span><span>−2σ 하단</span><span>0 중심선</span><span>+2σ 상단</span><span>+3σ</span></div>
+      </div>
+      <p class="note" id="gnote"></p>
+    </div>
+
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card">
+        <p class="eyebrow">봇 포지션</p>
+        <div id="posbox"></div>
+      </div>
+      <div class="card">
+        <p class="eyebrow">미국 장 운영 (KST)</p>
+        <div class="sess" id="sessbox"></div>
+        <p class="note" id="sessnote"></p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <p class="eyebrow">최근 90거래일 — SOXX 종가와 레짐</p>
+      <div id="chart"></div>
+      <p class="note" id="chartnote"></p>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <p class="eyebrow">작동 중인 규칙</p>
+      <dl class="kv" id="rules"></dl>
+    </div>
+  </section>
+
+  <!-- ===================== 주문내역 ===================== -->
+  <section class="pane" id="p-orders" role="tabpanel" aria-labelledby="t-orders" hidden>
+    <p class="lede">
+      <strong>봇이 낸 주문만</strong> 보여줍니다. 토스 주문 목록 API는 주문에 붙인
+      식별자(<code>clientOrderId</code>)를 돌려주지 않아 증권사 내역만으로는 봇 주문과
+      직접 낸 주문을 구분할 수 없습니다. 그래서 봇의 기록(journal)을 기준으로 삼고,
+      저장된 주문번호로 증권사 상세를 덧붙입니다.
+    </p>
+    <div id="orderbox"></div>
+    <div class="card" style="margin-top:14px">
+      <p class="eyebrow">슬리피지 — 백테스트 가정 대조</p>
+      <div id="slipbox"></div>
+      <p class="note">
+        백테스트는 <strong>편도 0.1%</strong>(왕복 0.2%)를 가정합니다. 실제 체결이 그보다
+        나쁘면 기대수익이 통째로 달라지므로, 신호가와 체결가를 따로 기록해 몇 달 모아
+        대조합니다.
+      </p>
+    </div>
+  </section>
+
+  <!-- ===================== 성과 ===================== -->
+  <section class="pane" id="p-perf" role="tabpanel" aria-labelledby="t-perf" hidden>
+    <p class="lede">
+      실거래 성과와, 참고용 백테스트 기대치를 나란히 둡니다. 실거래 기록이 쌓이기 전까지
+      아래 실현손익은 비어 있는 것이 정상입니다.
+    </p>
+
+    <div class="grid g3" id="perfhead"></div>
+
+    <hr class="rule">
+
+    <p class="eyebrow">백테스트 기대치 — 벤치마크와 나란히</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th>구간</th><th>전략</th><th>세후</th><th>MDD</th><th>Sharpe</th>
+          <th>거래</th><th>승률</th><th>SOXL 보유</th><th>SOXL 세후</th>
+        </tr></thead>
+        <tbody id="btbody"></tbody>
+      </table>
+    </div>
+    <p class="note" id="btnote"></p>
+
+    <div class="card" style="margin-top:18px">
+      <p class="eyebrow">반드시 함께 읽을 것</p>
+      <div id="caveats"></div>
+    </div>
+  </section>
+
+  <p class="note" id="footer" style="margin-top:26px"></p>
+</div>
+
+<script id="payload" type="application/json">__DATA__</script>
+<script>
+(function () {
+  "use strict";
+  var D = {};
+  try { D = JSON.parse(document.getElementById("payload").textContent); } catch (e) { D = {}; }
+
+  var $ = function (id) { return document.getElementById(id); };
+  var fmt = function (n, d) {
+    if (n === null || n === undefined || isNaN(n)) return "—";
+    return Number(n).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+  };
+  var usd = function (n, d) { return n === null || n === undefined ? "—" : "$" + fmt(n, d === undefined ? 2 : d); };
+  var sgn = function (n, d) { return (n > 0 ? "+" : "") + fmt(n, d === undefined ? 2 : d); };
+  var cls = function (n) { return n > 0 ? "pos" : n < 0 ? "neg" : ""; };
+  var esc = function (s) { return String(s === null || s === undefined ? "" : s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); };
+  var REG = { "상승": "up", "횡보": "side", "하락": "down" };
+
+  /* ---------- 탭 ---------- */
+  var tabs = [["t-state", "p-state"], ["t-orders", "p-orders"], ["t-perf", "p-perf"]];
+  function show(id) {
+    tabs.forEach(function (p) {
+      var on = p[0] === id;
+      $(p[0]).setAttribute("aria-selected", on ? "true" : "false");
+      $(p[1]).hidden = !on;
+    });
+    try { localStorage.setItem("soxxtab", id); } catch (e) {}
+  }
+  tabs.forEach(function (p) { $(p[0]).addEventListener("click", function () { show(p[0]); }); });
+  var saved = null;
+  try { saved = localStorage.getItem("soxxtab"); } catch (e) {}
+  show(tabs.some(function (p) { return p[0] === saved; }) ? saved : "t-state");
+
+  /* ---------- 머리말 ---------- */
+  var sig = D.signal || {}, pos = D.position, br = D.broker || {}, pr = D.params || {};
+  var isLocal = location.protocol === "file:";
+  $("stamp").textContent = "생성 " + (D.generated_at || "—") + "  ·  " + (D.generated_et || "");
+  $("modepill").textContent = isLocal ? "로컬 · 자동 갱신" : "읽기 전용 · 스냅샷";
+
+  /* 스냅샷 나이 — 발행 페이지는 고정된 시점의 데이터이므로 이걸 숨기면 오해를 만든다. */
+  (function () {
+    var el = $("agepill");
+    function tick() {
+      var t = Date.parse((D.generated_at || "").replace(" ", "T"));
+      if (isNaN(t)) { el.hidden = true; return; }
+      var min = Math.max(0, Math.round((Date.now() - t) / 60000));
+      var txt = min < 1 ? "방금" : min < 60 ? min + "분 전" :
+        min < 1440 ? Math.floor(min / 60) + "시간 " + (min % 60) + "분 전" :
+        Math.floor(min / 1440) + "일 전";
+      el.textContent = "데이터 " + txt;
+      el.className = "pill " + (min <= 70 ? "up" : min <= 240 ? "side" : "down");
+    }
+    tick();
+    setInterval(tick, 30000);
+  })();
+
+  /* 로컬 파일로 열었을 때만 자동 새로고침 — cron이 같은 파일을 1시간마다 다시 쓴다.
+     발행 페이지는 데이터가 발행 시점에 고정돼 있어 새로고침해도 달라지지 않으므로 하지 않는다. */
+  if (isLocal) {
+    setTimeout(function () { location.reload(); }, 60000);
+  }
+
+  /* ---------- 지시 배너 ---------- */
+  var ACT = {
+    OPEN: { label: "매수", desc: "신규 진입" },
+    CLOSE: { label: "매도", desc: "전량 청산" },
+    SWITCH: { label: "교체", desc: "같은 장에서 매도 후 매수" },
+    HOLD: { label: "보유", desc: "조건 미충족 — 그대로 둠" },
+    NONE: { label: "대기", desc: "현금 — 진입 조건 미충족" }
+  };
+  var a = ACT[sig.action] || { label: sig.action || "—", desc: "" };
+  var acting = sig.action === "OPEN" || sig.action === "CLOSE" || sig.action === "SWITCH";
+  var bhtml = '<div class="order-banner"><div class="row"><div>' +
+    '<p class="eyebrow">' + esc(sig.date || "") + ' 종가 신호 → 다음 정규장 개장 직후 체결</p>' +
+    '<div class="mid"><span class="pill ' + (acting ? "act" : "flat") + '">' + esc(a.label) + '</span> ' +
+    esc(sig.ticker || (pos && pos.ticker) || "—") +
+    (acting && sig.amount ? '  <span class="num">' + usd(sig.amount, 0) + '</span>' : '') + '</div>' +
+    '<div class="sub">' + esc(a.desc) + (sig.reason ? " · " + esc(sig.reason) : "") + '</div>' +
+    '</div><div style="text-align:right"><p class="eyebrow">봇 운용자산</p>' +
+    '<div class="mid num">' + usd(sig.equity, 0) + '</div>' +
+    (br.buying_power_usd !== undefined ? '<div class="sub">계좌 매수가능 ' + usd(br.buying_power_usd) + '</div>' : '') +
+    '</div></div>';
+  if (acting) {
+    bhtml += '<p class="note">이 지시는 <strong>정규장 개장 후 120분</strong> 안에만 체결됩니다. ' +
+      '그 시간을 놓치면 주문하지 않고 그날을 건너뜁니다.</p>';
+  }
+  bhtml += '</div>';
+  $("banner").innerHTML = bhtml;
+
+  /* ---------- 요약 타일 ---------- */
+  var live = (br.prices || {}).SOXX;
+  $("soxx").textContent = fmt(sig.close, 2);
+  $("soxxsub").innerHTML = live ?
+    '현재 <span class="num">' + fmt(live, 2) + '</span> (' +
+    '<span class="' + cls(live - sig.close) + '">' + sgn((live / sig.close - 1) * 100) + '%</span> 종가 대비)' :
+    '신호 기준 종가';
+
+  var rk = REG[sig.regime] || "flat";
+  $("regimebox").innerHTML = '<div class="mid"><span class="pill ' + rk + '">' + esc(sig.regime || "—") + '</span></div>';
+  $("regimesub").textContent = (sig.streak || 0) + "거래일째 · 50일선+20일 기울기+가격 20일";
+  if (sig.lt_trend) {
+    // 매매에 **쓰이는** 값이다 — 장기 추세를 거스르는 평균회귀 진입은 차단된다.
+    var lk = REG[sig.lt_trend] || "flat";
+    $("regimebox").innerHTML += '<div class="sub" style="margin-top:8px">장기 추세(120일) ' +
+      '<span class="pill ' + lk + '">' + esc(sig.lt_trend) + '</span> · ' +
+      (sig.lt_chg > 0 ? "+" : "") + sig.lt_chg + '% · 역방향 진입 차단</div>';
+  }
+  if (sig.view) {
+    // 표시 전용. 매매는 위의 레짐으로만 한다.
+    var vk = REG[sig.view] || "flat";
+    $("regimebox").innerHTML += '<div class="sub" style="margin-top:8px">장세 참고 ' +
+      '<span class="pill ' + vk + '">' + esc(sig.view) + '</span> · 20일 ' +
+      (sig.view_chg > 0 ? "+" : "") + sig.view_chg + '% · 매매에는 쓰지 않음</div>';
+  }
+
+  $("zval").textContent = sgn(sig.z, 2);
+  var ent = pr.sideways_entry, need;
+  if (sig.regime === "횡보") need = "|z| ≥ " + fmt(ent, 1) + " 에서 진입";
+  else if (sig.regime === "하락") need = "z ≤ −" + fmt(pr.down_entry, 1) + " 에서 SOXL 반등 매수";
+  else need = "상승 레짐은 z와 무관하게 즉시 매수";
+  $("zsub").textContent = need;
+
+  /* ---------- z 게이지 (−3 ~ +3) ---------- */
+  var toPct = function (z) { return Math.max(0, Math.min(100, (z + 3) / 6 * 100)); };
+  var gb = $("gband");
+  if (sig.regime === "횡보") {
+    gb.style.left = toPct(ent) + "%"; gb.style.width = (toPct(3) - toPct(ent)) + "%";
+  } else if (sig.regime === "하락") {
+    gb.style.left = "0%"; gb.style.width = toPct(-pr.down_entry) + "%";
+  } else { gb.style.display = "none"; }
+  $("gmark").style.left = toPct(sig.z) + "%";
+  $("gnote").innerHTML = '음영은 현재 레짐의 <strong>진입 구간</strong>입니다. 굵은 선이 지금 z 위치 ' +
+    '(<span class="num">' + sgn(sig.z, 2) + '</span>). 밴드는 관례상 ±2σ를 상·하단이라 부르고, ' +
+    '코드는 밴드 선을 긋지 않고 z 값만 씁니다.';
+
+  /* ---------- 포지션 ---------- */
+  if (pos) {
+    $("posbox").innerHTML =
+      '<div class="mid">' + esc(pos.ticker) + ' <span class="num">' + fmt(pos.shares, 4) + '</span>주</div>' +
+      '<div class="big num ' + cls(pos.unrealized_pct) + '" style="margin-top:8px">' + sgn(pos.unrealized_pct) + '%</div>' +
+      '<div class="sub num ' + cls(pos.unrealized_usd) + '">' + sgn(pos.unrealized_usd) + ' USD (평가)</div>' +
+      '<dl class="kv" style="margin-top:12px">' +
+      '<dt>진입가</dt><dd>' + usd(pos.entry, 4) + '</dd>' +
+      '<dt>현재가</dt><dd>' + usd(pos.price, 4) + '</dd>' +
+      '<dt>진입일</dt><dd>' + esc(pos.opened) + '</dd>' +
+      '<dt>보유</dt><dd>' + pos.days + '거래일</dd>' +
+      '<dt>진입 레짐</dt><dd>' + esc(pos.regime) + '</dd></dl>' +
+      (pos.filled ? '' : '<p class="note">⚠️ 체결가가 입력되지 않아 신호가로 임시 계산했습니다.</p>');
+  } else {
+    var hs = (br.holdings || []).filter(function (h) { return h.quantity > 0; });
+    $("posbox").innerHTML = '<div class="empty"><strong>보유 없음</strong><br>현금 ' + usd(sig.equity, 0) +
+      ' · 봇이 관리하는 포지션이 없습니다.' +
+      (hs.length ? '<br><br>계좌에는 ' + hs.map(function (h) { return esc(h.symbol) + " " + fmt(h.quantity, 4) + "주"; }).join(", ") +
+        ' 가 있습니다. 봇 기록에 없는 물량이라 신규 매수가 막힙니다.' : '') + '</div>';
+  }
+
+  /* ---------- 세션 ---------- */
+  var SL = { preMarket: "프리장", regularMarket: "정규장", afterMarket: "애프터장" };
+  var ss = br.sessions || {}, now = Date.now(), rows = [], liveName = null;
+  ["preMarket", "regularMarket", "afterMarket"].forEach(function (k) {
+    var v = ss[k];
+    if (!v || !v.startTime) { rows.push('<div class="sess-row"><span>' + SL[k] + '</span><div class="sess-bar"></div><span class="num">휴장</span></div>'); return; }
+    var s = new Date(v.startTime), e = new Date(v.endTime);
+    var on = now >= s && now <= e;
+    if (on) liveName = SL[k];
+    var pct = on ? Math.min(100, (now - s) / (e - s) * 100) : (now > e ? 100 : 0);
+    var hm = function (d) { return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
+    rows.push('<div class="sess-row' + (on ? " live" : "") + '"><span>' + SL[k] + (on ? " ●" : "") + '</span>' +
+      '<div class="sess-bar"><div class="sess-fill" style="width:' + pct.toFixed(1) + '%"></div></div>' +
+      '<span class="num">' + hm(s) + "–" + hm(e) + '</span></div>');
+  });
+  $("sessbox").innerHTML = rows.join("");
+  var reg = ss.regularMarket;
+  if (reg && reg.startTime) {
+    var st = new Date(reg.startTime), cut = new Date(st.getTime() + 120 * 60000);
+    var hm2 = function (d) { return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
+    $("sessnote").innerHTML = (liveName ? "현재 <strong>" + liveName + "</strong> 진행 중. " : "현재 모든 세션 종료. ") +
+      "주문 허용 구간은 <strong>" + hm2(st) + "–" + hm2(cut) + "</strong> (개장 후 120분). " +
+      "실측상 개장 직후가 가장 좋고 12:30 ET부터 성과가 반토막 납니다.";
+  }
+
+  /* ---------- 차트 ---------- */
+  (function () {
+    var t = D.trend || [];
+    if (t.length < 2) { $("chart").innerHTML = '<div class="empty">추이 데이터가 없습니다.</div>'; return; }
+    var W = 960, H = 210, L = 46, R = 12, T = 12, B = 30;
+    var lo = Math.min.apply(null, t.map(function (d) { return d.close; }));
+    var hi = Math.max.apply(null, t.map(function (d) { return d.close; }));
+    var pad = (hi - lo) * 0.12 || 1; lo -= pad; hi += pad;
+    var x = function (i) { return L + i / (t.length - 1) * (W - L - R); };
+    var y = function (v) { return T + (1 - (v - lo) / (hi - lo)) * (H - T - B); };
+    var bands = [], cur = t[0].regime, start = 0;
+    for (var i = 1; i <= t.length; i++) {
+      if (i === t.length || t[i].regime !== cur) { bands.push([cur, start, i - 1]); cur = i < t.length ? t[i].regime : cur; start = i; }
+    }
+    var CB = { "상승": "var(--up)", "횡보": "var(--side)", "하락": "var(--down)" };
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="SOXX 종가와 레짐 추이">';
+    bands.forEach(function (b) {
+      var x0 = x(b[1]), x1 = x(b[2]);
+      svg += '<rect x="' + x0.toFixed(1) + '" y="' + T + '" width="' + Math.max(1, x1 - x0).toFixed(1) +
+        '" height="' + (H - T - B) + '" fill="' + CB[b[0]] + '" opacity="0.13"></rect>';
+    });
+    [lo + (hi - lo) * 0.5, hi - pad, lo + pad].forEach(function (v) {
+      svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) +
+        '" stroke="var(--line-soft)" stroke-width="1"></line>' +
+        '<text x="' + (L - 7) + '" y="' + (y(v) + 3.5).toFixed(1) + '" text-anchor="end" font-size="10" font-family="var(--mono)" fill="var(--ink-3)">' + Math.round(v) + '</text>';
+    });
+    var dpath = t.map(function (d, i) { return (i ? "L" : "M") + x(i).toFixed(1) + " " + y(d.close).toFixed(1); }).join(" ");
+    svg += '<path d="' + dpath + '" fill="none" stroke="var(--ink)" stroke-width="1.7" stroke-linejoin="round"></path>';
+    var lastI = t.length - 1;
+    svg += '<circle cx="' + x(lastI).toFixed(1) + '" cy="' + y(t[lastI].close).toFixed(1) + '" r="3.6" fill="var(--accent)"></circle>';
+    svg += '<text x="' + L + '" y="' + (H - 9) + '" font-size="10" font-family="var(--mono)" fill="var(--ink-3)">' + esc(t[0].date) + '</text>';
+    svg += '<text x="' + (W - R) + '" y="' + (H - 9) + '" text-anchor="end" font-size="10" font-family="var(--mono)" fill="var(--ink-3)">' + esc(t[lastI].date) + '</text>';
+    svg += '</svg>';
+    $("chart").innerHTML = svg;
+    var dd = D.regime_dist || {};
+    var tot = Object.keys(dd).reduce(function (s2, k) { return s2 + dd[k]; }, 0) || 1;
+    $("chartnote").innerHTML = '배경색이 레짐입니다 — ' +
+      '<span class="pill up">상승</span> <span class="pill side">횡보</span> <span class="pill down">하락</span>. ' +
+      '전체 16.3년 분포: ' + ["상승", "횡보", "하락"].map(function (k) {
+        return esc(k) + " " + (dd[k] || 0).toLocaleString() + "일(" + Math.round((dd[k] || 0) / tot * 100) + "%)";
+      }).join(" · ") + '.';
+  })();
+
+  /* ---------- 규칙 ---------- */
+  $("rules").innerHTML = [
+    ["레짐 분류", "50일선 위치 + 20일 기울기 + 가격 20일 변화 (셋 모두)"],
+    ["볼린저", pr.bb_period + "일 기준 z"],
+    ["상승", "SOXL 즉시 매수 · 레짐 이탈 또는 고점 대비 −25%"],
+    ["횡보", "|z| ≥ " + fmt(pr.sideways_entry, 1) + " 진입 · 중심선(z=" + fmt(pr.sideways_exit, 1) + ") 익절 · 반등 후 꺾임"],
+    ["하락", "z ≤ −" + fmt(pr.down_entry, 1) + " SOXL 반등 매수 · z=0 복귀 · 반등 후 꺾임 · 5일"],
+    ["단기 추세", pr.trend_ma + "일선 회복 후 재이탈"],
+    ["노출", Math.round(pr.exposure * 100) + "% · 자본 하한 " + usd(pr.min_capital, 0)]
+  ].map(function (r) { return "<dt>" + esc(r[0]) + "</dt><dd style=\"font-family:var(--sans)\">" + esc(r[1]) + "</dd>"; }).join("");
+
+  /* ---------- 주문내역 ---------- */
+  (function () {
+    var os = (br.orders || []);
+    if (!os.length) {
+      $("orderbox").innerHTML = '<div class="empty"><strong>봇이 낸 주문이 없습니다</strong><br>' +
+        '전략이 매수·매도를 실행하면 여기에 쌓입니다. 연결 점검 주문도 함께 표시됩니다.</div>';
+      $("slipbox").innerHTML = '<div class="empty">체결 기록이 없어 대조할 수 없습니다.</div>';
+      return;
+    }
+    var KIND = { strategy: "전략", smoke: "점검" };
+    var rowsH = os.map(function (o) {
+      var b = o.broker || {};
+      var st = b.status || (o.fill_price ? "기록됨" : "미체결");
+      var stc = st === "FILLED" ? "up" : (st === "REJECTED" || st === "CANCELED") ? "down" : "flat";
+      var amt = b.filledAmount ? usd(Number(b.filledAmount)) : (o.fill_price && o.shares ? usd(o.fill_price * o.shares) : "—");
+      var costv = (Number(b.commission || 0) + Number(b.tax || 0));
+      return "<tr>" +
+        "<td>" + esc((o.timestamp || "").slice(0, 16)) + "</td>" +
+        "<td><span class=\"pill " + (o.kind === "smoke" ? "flat" : "act") + "\">" + esc(KIND[o.kind] || o.kind) + "</span></td>" +
+        "<td>" + esc(o.action) + (b.side ? " / " + esc(b.side) : "") + "</td>" +
+        "<td>" + esc(o.ticker) + "</td>" +
+        "<td class=\"n\">" + (o.shares ? fmt(o.shares, 4) : "—") + "</td>" +
+        "<td class=\"n\">" + (o.signal_price ? fmt(o.signal_price, 4) : "—") + "</td>" +
+        "<td class=\"n\">" + (o.fill_price ? fmt(o.fill_price, 4) : "—") + "</td>" +
+        "<td class=\"n\">" + amt + "</td>" +
+        "<td class=\"n\">" + (costv ? usd(costv) : "—") + "</td>" +
+        "<td><span class=\"pill " + stc + "\">" + esc(st) + "</span></td>" +
+        "</tr>";
+    }).join("");
+    $("orderbox").innerHTML = '<div class="tablewrap"><table><thead><tr>' +
+      "<th>시각</th><th>구분</th><th>액션</th><th>종목</th><th>수량</th>" +
+      "<th>신호가</th><th>체결가</th><th>체결금액</th><th>수수료·세금</th><th>상태</th>" +
+      "</tr></thead><tbody>" + rowsH + "</tbody></table></div>" +
+      '<p class="note">구분 <span class="pill act">전략</span> 은 전략이 낸 주문, ' +
+      '<span class="pill flat">점검</span> 은 API 연결 확인용 단발 주문입니다. ' +
+      '점검 주문은 포지션 계산에 들어가지 않습니다.</p>';
+
+    var slips = os.filter(function (o) { return o.slippage_pct !== undefined && o.slippage_pct !== null; });
+    if (!slips.length) { $("slipbox").innerHTML = '<div class="empty">신호가·체결가가 모두 있는 기록이 없습니다.</div>'; return; }
+    var avg = slips.reduce(function (s2, o) { return s2 + Math.abs(o.slippage_pct); }, 0) / slips.length;
+    $("slipbox").innerHTML = '<div class="mid num ' + (avg > 0.1 ? "neg" : "pos") + '">' + fmt(avg, 3) + '%</div>' +
+      '<div class="sub">평균 절대 슬리피지 · 표본 ' + slips.length + '건 · 가정 0.100%</div>' +
+      '<div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>시각</th><th>종목</th><th>신호가</th><th>체결가</th><th>차이</th></tr></thead><tbody>' +
+      slips.map(function (o) {
+        return "<tr><td>" + esc((o.timestamp || "").slice(0, 16)) + "</td><td>" + esc(o.ticker) + "</td>" +
+          "<td class=\"n\">" + fmt(o.signal_price, 4) + "</td><td class=\"n\">" + fmt(o.fill_price, 4) + "</td>" +
+          "<td class=\"n " + cls(-Math.abs(o.slippage_pct)) + "\">" + sgn(o.slippage_pct, 3) + "%</td></tr>";
+      }).join("") + "</tbody></table></div>";
+  })();
+
+  /* ---------- 성과 ---------- */
+  (function () {
+    var lv = D.live || {}, bt = D.backtest || [];
+    var closedN = lv.n_closed || 0;
+    $("perfhead").innerHTML =
+      '<div class="card raise"><p class="eyebrow">실현 손익 (실거래)</p>' +
+      '<div class="big num ' + cls(lv.realized_pnl) + '">' + (closedN ? sgn(lv.realized_pnl) : "—") + '</div>' +
+      '<div class="sub">' + (closedN ? "USD · 청산 " + closedN + "건" : "청산된 거래가 아직 없습니다") + '</div></div>' +
+      '<div class="card"><p class="eyebrow">평가 손익 (보유 중)</p>' +
+      '<div class="big num ' + (pos ? cls(pos.unrealized_usd) : "") + '">' + (pos ? sgn(pos.unrealized_usd) : "—") + '</div>' +
+      '<div class="sub">' + (pos ? esc(pos.ticker) + " " + sgn(pos.unrealized_pct) + "%" : "보유 포지션 없음") + '</div></div>' +
+      '<div class="card"><p class="eyebrow">실거래 승률</p>' +
+      '<div class="big num">' + (lv.winrate === null || lv.winrate === undefined ? "—" : fmt(lv.winrate, 1) + "%") + '</div>' +
+      '<div class="sub">기록 ' + (lv.journal_rows || 0) + '행 · 미실행 처리 ' + (lv.skipped || 0) + '건</div></div>';
+
+    $("btbody").innerHTML = bt.map(function (b) {
+      var beat = b.mult > b.soxl;
+      return "<tr>" +
+        "<td>" + esc(b.name) + ' <span class="stamp">' + b.years + "년</span></td>" +
+        '<td class="n" style="font-weight:600">' + fmt(b.mult, 2) + "배</td>" +
+        '<td class="n">' + fmt(b.after_tax, 2) + "배</td>" +
+        '<td class="n neg">' + fmt(b.mdd, 1) + "%</td>" +
+        '<td class="n">' + fmt(b.sharpe, 2) + "</td>" +
+        '<td class="n">' + b.trades + "</td>" +
+        '<td class="n">' + fmt(b.winrate, 1) + "%</td>" +
+        '<td class="n' + (beat ? "" : " neg") + '">' + fmt(b.soxl, 2) + "배</td>" +
+        '<td class="n">' + fmt(b.soxl_tax, 2) + "배</td>" +
+        "</tr>";
+    }).join("");
+
+    var inj = bt.filter(function (b) { return b.n_injections > 0; });
+    $("btnote").innerHTML = '전략 세후는 <strong>매년 실현</strong> 기준(연 20회 안팎 회전), ' +
+      'SOXL 세후는 <strong>1회 실현</strong> 기준입니다. 세금 구조가 달라 비교를 뒤집을 만큼 차이가 납니다.' +
+      (inj.length ? ' 자본 하한($5,000) 때문에 ' + inj.map(function (b) {
+        return esc(b.name) + "에서 " + usd(b.injected, 0) + "(" + b.n_injections + "회)";
+      }).join(", ") + ' 를 추가 입금했고, 배수는 <strong>총 투입 대비</strong>입니다.' : '');
+
+    var cav = [
+      ["전체 기간은 SOXL 매수보유에 집니다",
+        "16.3년으로 보면 전략 103배 vs SOXL 232배(세후 39배 vs 181배)입니다. 우위는 최근 구간에 한정됩니다."],
+      ["학습구간 13년이 1.59배입니다",
+        "2010~2022년 성과가 사실상 없습니다. 이 전략은 2023년 이후 국면이 이어진다는 전제에 베팅합니다."],
+      ["AI 국면은 out-of-sample이 아닙니다",
+        "파라미터 탐색과 분류기 선택의 평가 구간으로 썼습니다. 그 구간 수치를 미래 기대치로 읽으면 안 됩니다."],
+      ["낙폭이 큽니다",
+        "전체 −93.8%, 최근 3년 −52.0%. 자본 하한 규칙은 낙폭에 물타기라, 회복하지 않으면 손실이 커집니다."],
+      ["금액 주문 경로는 아직 미검증입니다",
+        "조회와 수량 주문·체결 확인은 실계좌로 통과했지만, 전략 매수가 쓰는 금액 주문은 첫 실거래에서 확인됩니다."]
+    ];
+    $("caveats").innerHTML = cav.map(function (c) {
+      return '<div class="warn" style="margin-bottom:9px"><strong>' + esc(c[0]) + '</strong><br>' + esc(c[1]) + '</div>';
+    }).join("");
+  })();
+
+  /* ---------- 꼬리말 ---------- */
+  $("footer").innerHTML = '이 화면은 <strong>조회 전용</strong>입니다 — 주문·청산 기능이 없습니다.<br><br>' +
+    (isLocal
+      ? '로컬 파일로 열었습니다. <code>scripts/refresh_dashboard.sh</code> 가 cron으로 1시간마다 ' +
+        '데이터를 다시 만들고, 이 탭은 1분마다 스스로 새로고침합니다.'
+      : '발행된 페이지라 데이터가 <strong>발행 시점에 고정</strong>돼 있습니다. 위의 “데이터 N분 전” ' +
+        '배지가 나이를 보여줍니다. 로컬 <code>results/dashboard.html</code> 은 cron으로 1시간마다 ' +
+        '자동 갱신되지만, 이 URL을 갱신하려면 Claude에게 재발행을 요청해야 합니다 — ' +
+        '발행 페이지는 보안 정책상 이 장비의 데이터를 직접 가져올 수 없습니다.') +
+    (br.ok === false ? '<br><br>⚠️ 증권사 조회 실패: ' + esc(br.error || "") : '');
+})();
+</script>

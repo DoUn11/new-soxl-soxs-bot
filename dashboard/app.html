@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>레짐 콘솔</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #ffffff; --ink: #1c1c1a; --ink-2: #6b6b64; --line: #e7e6e1;
+    --up: #0f766e; --up-soft: #dcf2ef;
+    --side: #a15c07; --side-soft: #fbeed7;
+    --down: #9f1239; --down-soft: #fbe3e9;
+    --accent: #3730a3; --accent-soft: #e8e7fb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17171a; --card: #202024; --ink: #eceae3; --ink-2: #a7a59d; --line: #34333a;
+      --up: #5eead4; --up-soft: #103833;
+      --side: #fbbf60; --side-soft: #3a2a0c;
+      --down: #fda4af; --down-soft: #3d1420;
+      --accent: #a5b4fc; --accent-soft: #26254a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17171a; --card: #202024; --ink: #eceae3; --ink-2: #a7a59d; --line: #34333a;
+    --up: #5eead4; --up-soft: #103833;
+    --side: #fbbf60; --side-soft: #3a2a0c;
+    --down: #fda4af; --down-soft: #3d1420;
+    --accent: #a5b4fc; --accent-soft: #26254a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    padding: 16px 16px 40px; max-width: 640px; margin-inline: auto;
+  }
+  h1 { font-size: 17px; margin: 0 0 2px; }
+  .sub { color: var(--ink-2); font-size: 13px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px; margin-top: 12px;
+  }
+  .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .row + .row { margin-top: 8px; }
+  .label { color: var(--ink-2); font-size: 13px; }
+  .big { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .pill {
+    display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 13px;
+    font-weight: 600; border: 1px solid transparent;
+  }
+  .pill.up { background: var(--up-soft); color: var(--up); }
+  .pill.side { background: var(--side-soft); color: var(--side); }
+  .pill.down { background: var(--down-soft); color: var(--down); }
+  .pill.flat { background: var(--line); color: var(--ink-2); }
+  .pill.accent { background: var(--accent-soft); color: var(--accent); }
+  .warn {
+    background: var(--down-soft); color: var(--down); border-radius: 10px;
+    padding: 10px 12px; font-size: 13px; margin-top: 10px; font-weight: 600;
+  }
+  .muted { color: var(--ink-2); font-size: 13px; }
+  .divider { border: none; border-top: 1px solid var(--line); margin: 12px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 5px 0; border-bottom: 1px solid var(--line); }
+  th { color: var(--ink-2); font-weight: 500; }
+  .up-txt { color: var(--up); } .down-txt { color: var(--down); }
+  .flash { animation: flash 1s ease; }
+  @keyframes flash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
+  #err { display: none; }
+  footer { text-align: center; color: var(--ink-2); font-size: 12px; margin-top: 18px; }
+</style>
+</head>
+<body>
+  <h1>레짐 콘솔</h1>
+  <div class="sub" id="clock">불러오는 중…</div>
+  <div class="warn" id="halt" style="display:none">⛔ 킬 스위치 켜짐 — 어떤 주문도 나가지 않습니다</div>
+
+  <div class="card">
+    <div class="row"><span class="label">SOXX</span><span id="market" class="pill flat">—</span></div>
+    <div class="row"><span class="big" id="price">—</span><span class="muted" id="marketDetail"></span></div>
+    <hr class="divider">
+    <div class="row"><span class="label">매매 레짐 (확정)</span>
+      <span><span id="regime" class="pill flat">—</span> <span class="muted" id="streak"></span></span></div>
+    <div class="row" id="liveRow" style="display:none">
+      <span class="label">지금 종가라면</span>
+      <span id="liveRegime" class="pill flat">—</span></div>
+    <div class="row"><span class="label">z-score</span><span id="z" class="muted">—</span></div>
+    <div class="row"><span class="label">장기 추세(120일)</span>
+      <span><span id="ltTrend" class="pill flat">—</span> <span class="muted" id="ltChg"></span></span></div>
+    <div class="row"><span class="label">장세 참고 (20일)</span>
+      <span><span id="view" class="pill flat">—</span> <span class="muted">매매엔 안 씀</span></span></div>
+  </div>
+
+  <div class="card" id="posCard" style="display:none">
+    <div class="row"><span class="label">보유</span><span id="posTicker" class="pill accent">—</span></div>
+    <div class="row"><span class="big" id="posPnlPct">—</span><span id="posPnl" class="muted"></span></div>
+    <div class="row"><span class="muted" id="posDetail"></span></div>
+    <hr class="divider">
+    <table id="gapsTable"></table>
+  </div>
+
+  <div class="card" id="noPosCard" style="display:none">
+    <div class="label">보유 포지션 없음</div>
+  </div>
+
+  <div class="card">
+    <div class="row"><span class="label">오늘의 지시</span><span id="action" class="pill flat">—</span></div>
+    <div class="muted" id="reason" style="margin-top:6px"></div>
+    <div class="muted" id="amount" style="margin-top:4px"></div>
+  </div>
+
+  <div class="card">
+    <div class="label" style="margin-bottom:8px">최근 주문 (봇 실행분)</div>
+    <table id="ordersTable"><thead><tr><th>시각</th><th>동작</th><th>종목</th><th>체결가</th></tr></thead>
+      <tbody id="ordersBody"></tbody></table>
+    <div class="muted" id="noOrders" style="display:none">아직 없음</div>
+  </div>
+
+  <footer>읽기 전용 · 주문 기능 없음 · 15초마다 자동 갱신</footer>
+
+<script>
+(function () {
+  var REG = { "상승": "up", "횡보": "side", "하락": "down" };
+  var qs = new URLSearchParams(location.search);
+  var token = qs.get("t") || "";
+  var $ = function (id) { return document.getElementById(id); };
+  var lastRegime = null;
+
+  function fmtPct(v) {
+    if (v === null || v === undefined) return "—";
+    return (v > 0 ? "+" : "") + v.toFixed(2) + "%";
+  }
+  function pill(el, text, kind) {
+    el.textContent = text || "—";
+    el.className = "pill " + (kind || "flat");
+  }
+  function flash(el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
+
+  function render(d) {
+    $("err").style.display = "none";
+    $("clock").textContent = "미국 " + d.now.slice(11, 16) + " ET · 한국 " + d.now_kst.slice(11, 16) +
+                             " · " + d.market.state + " (" + d.market.detail + ")";
+    $("halt").style.display = d.halted ? "block" : "none";
+
+    var xx = d.quotes["SOXX"];
+    $("price").textContent = xx ? "$" + xx.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : "—";
+    pill($("market"), d.market.state, d.market.open ? "up" : "flat");
+    $("marketDetail").textContent = d.market.detail +
+      (d.quote_source === "yahoo" ? " · 시세 Yahoo(매매 중)" :
+       d.quote_source === "toss" ? " · 시세 토스" : "");
+
+    pill($("regime"), d.settled.regime, REG[d.settled.regime]);
+    if (lastRegime !== null && lastRegime !== d.settled.regime) flash($("regime").parentElement);
+    lastRegime = d.settled.regime;
+    $("streak").textContent = d.settled.date + " 종가 기준";
+    $("z").textContent = (d.settled.z > 0 ? "+" : "") + d.settled.z.toFixed(2);
+
+    if (d.live && d.live.regime !== d.settled.regime) {
+      $("liveRow").style.display = "flex";
+      pill($("liveRegime"), d.live.regime + " (잠정)", REG[d.live.regime]);
+    } else {
+      $("liveRow").style.display = "none";
+    }
+
+    pill($("ltTrend"), d.settled.lt_trend || "판단 불가", REG[d.settled.lt_trend] || "flat");
+    $("ltChg").textContent = d.settled.lt_chg !== null ? fmtPct(d.settled.lt_chg) + " (120일)" : "";
+    pill($("view"), d.settled.view || "—", REG[d.settled.view] || "flat");
+
+    if (d.position) {
+      $("posCard").style.display = "block"; $("noPosCard").style.display = "none";
+      pill($("posTicker"), d.position.ticker, "accent");
+      var pct = d.position.unrealized;
+      $("posPnlPct").textContent = fmtPct(pct);
+      $("posPnlPct").className = "big " + (pct >= 0 ? "up-txt" : "down-txt");
+      $("posPnl").textContent = d.position.pnl !== null ?
+        (d.position.pnl >= 0 ? "+" : "") + "$" + d.position.pnl.toLocaleString() : "";
+      $("posDetail").textContent = d.position.shares + "주 @ $" + d.position.entry.toFixed(2) +
+        " · 현재 " + (d.position.price ? "$" + d.position.price.toFixed(3) : "—") +
+        " · " + d.position.opened.slice(0, 10) + " 진입";
+      var rows = "";
+      if (d.gaps) {
+        for (var k in d.gaps) {
+          var g = d.gaps[k];
+          rows += "<tr><td>" + g.label + "</td><td>" +
+                  (g.hit ? "<b class=\"down-txt\">발동</b>" : g.detail) + "</td></tr>";
+        }
+      }
+      $("gapsTable").innerHTML = rows;
+    } else {
+      $("posCard").style.display = "none"; $("noPosCard").style.display = "block";
+    }
+
+    var act = d.decision.action;
+    var actKind = act === "HOLD" ? "accent" : (act === "NONE" ? "flat" :
+                  (act === "CLOSE" ? "down" : "up"));
+    pill($("action"), act, actKind);
+    $("reason").textContent = d.decision.reason || "";
+    $("amount").textContent = d.decision.amount ? "예상 매수 금액 $" + d.decision.amount.toLocaleString() : "";
+
+    var body = "";
+    (d.orders || []).forEach(function (o) {
+      body += "<tr><td>" + (o.timestamp || "").slice(5, 16) + "</td><td>" + o.action +
+              "</td><td>" + o.ticker + "</td><td>" +
+              (o.fill_price && o.fill_price !== "0" ? "$" + parseFloat(o.fill_price).toFixed(2) : "미체결") +
+              "</td></tr>";
+    });
+    $("ordersBody").innerHTML = body;
+    $("noOrders").style.display = (d.orders || []).length ? "none" : "block";
+  }
+
+  function tick() {
+    fetch("/api/state?t=" + encodeURIComponent(token), { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (d) {
+        if (d.error) throw new Error(d.error);
+        render(d);
+      })
+      .catch(function (e) {
+        $("err").style.display = "block";
+        $("clock").textContent = "갱신 실패 — 다시 시도 중… (" + e.message + ")";
+      });
+  }
+  tick();
+  setInterval(tick, 15000);
+})();
+</script>
+<div id="err"></div>
+</body>
+</html>
