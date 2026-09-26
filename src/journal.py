@@ -163,14 +163,40 @@ def record_fill(fill_price: float, timestamp: str = "", shares: float | None = N
     return target
 
 
-def slippage_report() -> list[dict]:
-    """신호가 대비 실제 체결가 차이 — 백테스트 가정(편도 0.1%)과 대조용."""
+def slippage_excluded(row: dict) -> str | None:
+    """슬리피지 통계에서 빼야 하는 기록이면 그 사유를, 아니면 None.
+
+    빼는 이유는 둘이다. ① 봇 밖에서 넣은 수동 거래는 신호가가 봇의 것이 아니다.
+    ② note에 "슬리피지 제외"를 남긴 기록 — 신호가가 Yahoo 소급조정값이라 실호가인
+    체결가와 비교할 수 없는 경우(2026-09-22 SOXS: 신호가 559.34 vs 체결가 35.85).
+    기준을 |차이| 크기로 잡지 않은 건 임계값이 곧 추측이라서다. 빼는 기록은 호출자가
+    목록으로 보여줘야 한다 — 조용히 빼면 통계가 좋아 보이는 쪽으로만 틀어진다.
+    """
+    note = row.get("note") or ""
+    if "슬리피지 제외" in note:
+        return "신호가가 실호가가 아님"
+    if "봇 외부" in note:
+        return "수동 거래"
+    return None
+
+
+def slippage_report(include_excluded: bool = False) -> list[dict]:
+    """신호가 대비 실제 체결가 차이 — 백테스트 가정(편도 0.1%)과 대조용.
+
+    기본은 `slippage_excluded()` 에 걸리는 기록을 뺀다. `include_excluded=True` 면
+    전부 돌려주고, 각 항목의 `excluded` 에 제외 사유(없으면 None)를 담는다.
+    """
     out = []
     for r in read_all():
         if r["action"] in ("OPEN", "CLOSE") and r["fill_price"] and r["signal_price"]:
             sp, fp = float(r["signal_price"]), float(r["fill_price"])
+            if sp <= 0 or fp <= 0:
+                continue
+            why = slippage_excluded(r)
+            if why and not include_excluded:
+                continue
             out.append(dict(timestamp=r["timestamp"], action=r["action"], ticker=r["ticker"],
-                            signal=sp, fill=fp, diff_pct=(fp / sp - 1) * 100))
+                            signal=sp, fill=fp, diff_pct=(fp / sp - 1) * 100, excluded=why))
     return out
 
 

@@ -501,13 +501,21 @@ def main() -> None:
         return
 
     if args.slippage:
-        rep = journal.slippage_report()
+        allrep = journal.slippage_report(include_excluded=True)
+        rep = [r for r in allrep if not r["excluded"]]
+        dropped = [r for r in allrep if r["excluded"]]
+        if dropped:
+            print(f"통계에서 제외한 기록 {len(dropped)}건:")
+            for r in dropped:
+                print(f"  {r['timestamp']} {r['action']} {r['ticker']} "
+                      f"신호 {r['signal']:.2f} → 체결 {r['fill']:.2f} — {r['excluded']}")
+            print()
         if not rep:
-            print("체결 기록이 없습니다. --record 로 신호를 남기고 --fill 로 체결가를 입력하세요.")
+            print("유효한 봇 체결 기록이 아직 없습니다 (슬리피지 판정 불가).")
             return
-        df = pd.DataFrame(rep)
+        df = pd.DataFrame(rep).drop(columns="excluded")
         print(df.to_string(index=False))
-        print(f"\n평균 슬리피지 {df.diff_pct.abs().mean():.3f}%  (백테스트 가정 편도 0.100%)")
+        print(f"\n평균 슬리피지 {df.diff_pct.abs().mean():.3f}%  (백테스트 가정 편도 0.100%, {len(df)}건)")
         return
 
     if args.fill is not None or args.skip:
