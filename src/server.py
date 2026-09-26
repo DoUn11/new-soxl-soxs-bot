@@ -1,4 +1,4 @@
-"""레짐 콘솔 — 맥에서 띄우고 폰 브라우저로 보는 **읽기 전용** 앱.
+"""SOXL/SOXS 봇 스테이터스 (구 레짐 콘솔) — 맥에서 띄우고 폰 브라우저로 보는 **읽기 전용** 앱.
 
 왜 이게 필요한가: `results/dashboard.html` 은 cron이 1시간마다 다시 만드는 **스냅샷**이고,
 claude.ai에 발행한 페이지는 CSP 때문에 이 장비의 데이터를 아예 가져올 수 없다. 둘 다
@@ -28,7 +28,8 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.request import urlopen
 
 import pandas as pd
 
@@ -134,9 +135,84 @@ def _quotes_toss() -> dict[str, float | None] | None:
         return None
 
 
-def _quotes() -> dict[str, float | None]:
-    """장중 현재가. 토스 우선, 안 되면 Yahoo. 실패해도 앱이 죽지 않는다."""
+# 미국 정규장이 하루 종일 닫히는 평일. **해가 바뀌면 갱신해야 한다.**
+# (주말은 요일로 판단하므로 여기 넣지 않는다.) 조기 마감일(11/27, 12/24)은 열리는 날이라 뺐다.
+NYSE_HOLIDAYS_2026 = {
+    "2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03", "2026-05-25",
+    "2026-06-19", "2026-07-03", "2026-09-07", "2026-11-26", "2026-12-25",
+}
+
+BINANCE_FAPI = "https://fapi.binance.com"
+
+
+def market_closed_day(now_et: pd.Timestamp) -> bool:
+    """오늘 미국 정규장이 열리지 않는 날인가 (주말 또는 NYSE 휴장일)."""
+    return now_et.weekday() >= 5 or str(now_et.date()) in NYSE_HOLIDAYS_2026
+
+
+def _binance(path: str, **params):
+    with urlopen(f"{BINANCE_FAPI}{path}?{urlencode(params)}", timeout=4) as r:
+        return json.loads(r.read().decode())
+
+
+def _quotes_binance(ref_date, soxx_close: float) -> dict[str, float | None] | None:
+    """**휴장일 참고용** 시세 — 바이낸스 TradFi 무기한 선물(24시간 거래). 실패하면 None.
+
+    ⚠️ **표시 전용이다. 신호 계산·주문·기준가에 절대 쓰지 마라.** 이 값은 증권사에서 사고팔
+    수 있는 가격이 아니다(스왑형 계약이고 펀딩·괴리가 있다). 하이퍼리퀴드 주말 관찰에서
+    개장 직전 가격이 월요일 시가에 더 가까웠던 경우도 50.7%뿐이었다 — 방향 감을 잡는
+    정도로만 읽어라. 신호는 여전히 Yahoo 일봉 종가로만 계산한다.
+
+    - SOXL·SOXS: 바이낸스에 같은 종목이 있어(SOXLUSDT/SOXSUSDT) **그대로** 쓴다.
+      2026-09-26 실측: SOXS 32.54 vs 금요일 종가 32.43.
+    - SOXX: 바이낸스에 **없다.** SOXL(+3배)·SOXS(-3배)가 같은 지수를 따르므로 그 변화율을
+      3으로 나눠 SOXX 변화로 환산하고, 둘의 평균을 `마지막 정규장 종가`에 곱해 **추정**한다.
+      종가 시각은 16:00 ET로 가정한다(조기 마감일은 그 뒤 몇 시간이 섞인다). 3배 ETF는
+      일간 재조정이라 주말 하루 움직임에서는 오차가 작지만 0은 아니다.
+      SMH 선물로 추정하는 방식은 버렸다 — 지수가 달라 방향이 어긋났다(2026-09-26 실측:
+      SOXL·SOXS 환산 -0.05~-0.16% vs SMH +0.38%).
+    """
+    try:
+        out: dict[str, float | None] = {}
+        for t in ("SOXL", "SOXS"):
+            out[t] = float(_binance("/fapi/v1/ticker/price", symbol=f"{t}USDT")["price"]) or None
+        if not any(out.values()):
+            return None
+        out["SOXX"] = None
+        try:
+            close_ms = int(pd.Timestamp(f"{pd.Timestamp(ref_date).date()} 16:00",
+                                        tz="America/New_York").timestamp() * 1000)
+            implied = []
+            for t, sign in (("SOXL", 1), ("SOXS", -1)):
+                if not out[t]:
+                    continue
+                ref = _binance("/fapi/v1/klines", symbol=f"{t}USDT", interval="1m",
+                               startTime=close_ms - 60_000, limit=1)
+                ref_px = float(ref[0][4]) if ref else 0.0
+                if ref_px > 0:
+                    implied.append(sign * (out[t] / ref_px - 1) / 3)
+            if implied:
+                out["SOXX"] = soxx_close * (1 + sum(implied) / len(implied))
+        except Exception:
+            pass
+        return out
+    except Exception:
+        return None
+
+
+def _quotes(closed_day: bool = False, ref_date=None,
+            soxx_close: float | None = None) -> dict[str, float | None]:
+    """현재가. 휴장일이면 바이낸스 참고값, 아니면 토스 우선 → Yahoo. 실패해도 앱이 죽지 않는다.
+
+    휴장일에는 토스 시세가 금요일 종가에서 멈춰 있어 바이낸스가 더 새 정보다. 바이낸스가
+    안 되면 평소 경로로 물러난다.
+    """
     def load():
+        if closed_day and ref_date is not None and soxx_close:
+            q = _quotes_binance(ref_date, soxx_close)
+            if q is not None:
+                q["_source"] = "binance"    # type: ignore[assignment]
+                return q
         q = _quotes_toss()
         if q is not None:
             q["_source"] = "toss"       # type: ignore[assignment]
@@ -144,7 +220,33 @@ def _quotes() -> dict[str, float | None]:
         q = _quotes_yahoo()
         q["_source"] = "yahoo"          # type: ignore[assignment]
         return q
-    return CACHE.get("quotes", QUOTE_TTL, load)
+    return CACHE.get(f"quotes-{'closed' if closed_day else 'open'}", QUOTE_TTL, load)
+
+
+# 화면에 밝히는 가격 출처. **reliable=False 면 사고팔 수 있는 가격이 아니거나 어긋날 수 있다.**
+QUOTE_SOURCES = {
+    "toss": dict(name="토스증권", note="실호가", reliable=True),
+    "yahoo": dict(name="Yahoo Finance",
+                  note="SOXL/SOXS는 소급조정값이라 실호가와 최대 2% 어긋남", reliable=False),
+    "binance": dict(name="바이낸스 선물",
+                    note="휴장 중 참고용 (SOXX는 SOXL·SOXS로 환산한 추정)", reliable=False),
+}
+
+
+def _alt_quotes() -> dict | None:
+    """바이낸스가 주 가격일 때 곁들여 보여줄 **한 가지** 비교 시세. 표시 전용.
+
+    토스가 우선이고, 못 받을 때(`config/TRADING` 락·자격증명 없음·IP 미등록·오류)만
+    Yahoo로 물러난다. 토스가 되면 느린 Yahoo 호출은 하지 않는다. 60초 캐시.
+    돌려주는 값: `{"source": "toss"|"yahoo", "quotes": {티커: 가격}}`, 둘 다 안 되면 None.
+    """
+    def load():
+        q = _quotes_toss()
+        if q is not None:
+            return dict(source="toss", quotes=q)
+        q = _quotes_yahoo()
+        return dict(source="yahoo", quotes=q) if any(q.values()) else None
+    return CACHE.get("alt-quotes", 60.0, load)
 
 
 def market_state(now_et: pd.Timestamp) -> dict:
@@ -175,12 +277,17 @@ def _label(frame: pd.DataFrame, view: pd.Series, idx) -> dict:
 
 def build_state() -> dict:
     bars = _bars()
-    raw_quotes = _quotes()
+    now_et = pd.Timestamp.now(tz="America/New_York")
+    sig_bars = bars["signal"]
+    raw_quotes = _quotes(closed_day=market_closed_day(now_et),
+                         ref_date=sig_bars.index[-1],
+                         soxx_close=float(sig_bars["Close"].iloc[-1]))
     # `_source` 는 시세가 아니라 출처 표시다. 숫자만 남겨 두지 않으면 아래
     # `round(v, 3)` 에서 문자열을 반올림하려다 터진다.
     quote_source = str(raw_quotes.get("_source") or "?")
     quotes = {k: v for k, v in raw_quotes.items() if k != "_source"}
-    now_et = pd.Timestamp.now(tz="America/New_York")
+    # 바이낸스가 주 가격(휴장 중)일 때만 다른 출처 값을 곁들인다.
+    alt = _alt_quotes() if quote_source == "binance" else None
 
     sig_df = bars["signal"]
     frame = build_signals(sig_df, PARAMS).dropna(subset=["z", "regime"])
@@ -257,6 +364,12 @@ def build_state() -> dict:
         market=market_state(now_et), settled=settled, live=live,
         quotes={k: (round(v, 3) if v else None) for k, v in quotes.items()},
         quote_source=quote_source,
+        alt_quotes=(dict(source=alt["source"],
+                         quotes={k: (round(v, 3) if v else None)
+                                 for k, v in alt["quotes"].items()}) if alt else None),
+        quote_name=QUOTE_SOURCES.get(quote_source, {}).get("name", "출처 불명"),
+        quote_note=QUOTE_SOURCES.get(quote_source, {}).get("note", ""),
+        quote_reliable=QUOTE_SOURCES.get(quote_source, {}).get("reliable", False),
         position=position, decision=decision, gaps=gaps, orders=orders, halted=halted,
         params=dict(entry_z=strategy.SIDEWAYS_RULE.entry_z, lt_days=PARAMS.lt_days),
     )
@@ -309,7 +422,7 @@ def lan_ip() -> str:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="레짐 콘솔 (읽기 전용). 주문 기능 없음.")
+    ap = argparse.ArgumentParser(description="SOXL/SOXS 봇 스테이터스 (읽기 전용). 주문 기능 없음.")
     ap.add_argument("--port", type=int, default=8787)
     ap.add_argument("--host", default="0.0.0.0", help="0.0.0.0이면 같은 와이파이에서 접속 가능")
     ap.add_argument("--new-token", action="store_true", help="접속 토큰을 새로 만든다")
@@ -323,7 +436,7 @@ def main() -> None:
 
     url = f"http://{lan_ip()}:{args.port}/?t={Handler.token}"
     print("=" * 70)
-    print(" 레짐 콘솔 (읽기 전용 — 주문 기능 없음)")
+    print(" SOXL/SOXS 봇 스테이터스 (읽기 전용 — 주문 기능 없음)")
     print("=" * 70)
     print(f"  폰에서 열기:  {url}")
     print(f"  맥에서 열기:  http://127.0.0.1:{args.port}/?t={Handler.token}")

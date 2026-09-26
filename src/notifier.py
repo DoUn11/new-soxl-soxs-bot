@@ -112,7 +112,7 @@ def format_brief(d: dict, pos: dict | None, equity: float, amount: float) -> str
 
     담는 것은 넷뿐이다: 오늘 할 행동 / 현재 포지션(현금이면 금액, 주식이면 평가금액) /
     현재 레짐. 더 넣지 마라 — 매일 밤 오는 알림이라 길면 안 읽게 된다.
-    자세한 내용은 레짐 콘솔(레짐콘솔.app)에서 본다.
+    자세한 내용은 SOXL/SOXS 봇 스테이터스(SOXL-SOXS 봇 스테이터스.app)에서 본다.
     """
     icon = {"OPEN": "🟢 매수", "CLOSE": "🔴 매도", "SWITCH": "🔄 교체",
             "HOLD": "⚪ 보유", "NONE": "⚫ 대기"}[d["action"]]

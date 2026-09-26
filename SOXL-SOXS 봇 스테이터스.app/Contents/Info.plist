@@ -2,8 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>레짐 콘솔</string>
-  <key>CFBundleDisplayName</key><string>레짐 콘솔</string>
+  <key>CFBundleName</key><string>SOXL/SOXS 봇 스테이터스</string>
+  <key>CFBundleDisplayName</key><string>SOXL/SOXS 봇 스테이터스</string>
   <key>CFBundleExecutable</key><string>RegimeConsole</string>
   <key>CFBundleIdentifier</key><string>local.soxlsoxs.regimeconsole</string>
   <key>CFBundlePackageType</key><string>APPL</string>

@@ -1,5 +1,5 @@
 #!/bin/bash
-# 레짐 콘솔 실행 — 로컬 서버를 띄우고 **크롬 앱 창**으로 연다. (2026-09-23)
+# SOXL/SOXS 봇 스테이터스 실행 — 로컬 서버를 띄우고 **크롬 앱 창**으로 연다. (2026-09-23)
 #
 # 왜 tkinter가 아닌가: 이 맥(macOS 26)의 파이썬은 CommandLineTools 3.9뿐이고 Tk가 **8.5**다.
 # 2010년판 deprecated Aqua Tk라 최신 macOS에서 **창은 뜨는데 내용이 하나도 안 그려진다**
@@ -34,6 +34,28 @@ URL="http://127.0.0.1:$PORT/?t=$TOKEN"
 log() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >>"$LOG"; }
 log "콘솔 실행 요청 (port=$PORT, arch강제=${ARCH:-없음})"
 
+# **코드가 서버보다 새로우면 서버를 다시 띄운다.** (2026-09-26) 예전에는 서버가 떠 있으면
+# 무조건 재사용해서, 코드를 고쳐도 며칠 전 코드로 계속 돌았다. 서버는 읽기 전용이라 죽여도
+# 주문·토큰에 영향이 없다(락은 매매 프로세스 쪽 문제다).
+server_pid() { lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t 2>/dev/null | head -1; }
+etime_sec() {   # ps etime([[dd-]hh:]mm:ss) → 초
+  ps -o etime= -p "$1" | tr -d ' ' | awk -F'[-:]' \
+    '{ if (NF==4) print $1*86400+$2*3600+$3*60+$4; else if (NF==3) print $1*3600+$2*60+$3; else print $1*60+$2 }'
+}
+newest_src() {  # 서버가 읽는 코드의 가장 최근 수정 시각(epoch)
+  find "$ROOT/src" "$ROOT/dashboard" -type f \( -name '*.py' -o -name '*.html' \) \
+    -exec stat -f %m {} + 2>/dev/null | sort -n | tail -1
+}
+PID="$(server_pid)"
+if [ -n "$PID" ] && ps -o command= -p "$PID" | grep -q "src/server.py"; then
+  STARTED=$(( $(date +%s) - $(etime_sec "$PID") ))
+  if [ "$(newest_src)" -gt "$STARTED" ]; then
+    log "서버(pid $PID)가 코드보다 오래됨 — 재시작"
+    kill "$PID" 2>/dev/null
+    for _ in $(seq 1 20); do [ -z "$(server_pid)" ] && break; sleep 0.25; done
+  fi
+fi
+
 # 이미 우리 서버가 떠 있으면 다시 띄우지 않는다 (포트 충돌 방지)
 if curl -sf -o /dev/null --max-time 3 "http://127.0.0.1:$PORT/api/state?t=$TOKEN"; then
   log "서버가 이미 실행 중"
@@ -48,9 +70,11 @@ fi
 
 if ! curl -sf -o /dev/null --max-time 3 "http://127.0.0.1:$PORT/api/state?t=$TOKEN"; then
   log "❌ 서버가 응답하지 않습니다. 이 로그 위쪽의 파이썬 오류를 확인하세요."
-  osascript -e 'display alert "레짐 콘솔" message "서버를 띄우지 못했습니다.\njournal/logs/console.log 를 확인하세요."' 2>/dev/null
+  osascript -e 'display alert "SOXL/SOXS 봇 스테이터스" message "서버를 띄우지 못했습니다.\njournal/logs/console.log 를 확인하세요."' 2>/dev/null
   exit 1
 fi
+
+[ "${CONSOLE_NO_WINDOW:-}" = "1" ] && { log "창 열기 생략(CONSOLE_NO_WINDOW=1)"; exit 0; }   # 시험용
 
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 if [ -x "$CHROME" ]; then

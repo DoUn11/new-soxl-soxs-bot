@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>레짐 콘솔</title>
+<title>SOXL/SOXS 봇 스테이터스</title>
 <style>
   :root {
     --bg: #f7f7f5; --card: #ffffff; --ink: #1c1c1a; --ink-2: #6b6b64; --line: #e7e6e1;
@@ -11,6 +11,8 @@
     --side: #a15c07; --side-soft: #fbeed7;
     --down: #9f1239; --down-soft: #fbe3e9;
     --accent: #3730a3; --accent-soft: #e8e7fb;
+    --num: #0369a1; --src-toss: #1d4ed8; --src-yahoo: #7e22ce; --src-binance: #a16207;
+    --zpos: #c2410c; --zneg: #0e7490;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -19,6 +21,8 @@
       --side: #fbbf60; --side-soft: #3a2a0c;
       --down: #fda4af; --down-soft: #3d1420;
       --accent: #a5b4fc; --accent-soft: #26254a;
+      --num: #7dd3fc; --src-toss: #93c5fd; --src-yahoo: #d8b4fe; --src-binance: #facc15;
+      --zpos: #fdba74; --zneg: #67e8f9;
     }
   }
   :root[data-theme="dark"] {
@@ -27,6 +31,8 @@
     --side: #fbbf60; --side-soft: #3a2a0c;
     --down: #fda4af; --down-soft: #3d1420;
     --accent: #a5b4fc; --accent-soft: #26254a;
+    --num: #7dd3fc; --src-toss: #93c5fd; --src-yahoo: #d8b4fe; --src-binance: #facc15;
+    --zpos: #fdba74; --zneg: #67e8f9;
   }
   * { box-sizing: border-box; }
   body {
@@ -63,6 +69,18 @@
   th, td { text-align: left; padding: 5px 0; border-bottom: 1px solid var(--line); }
   th { color: var(--ink-2); font-weight: 500; }
   .up-txt { color: var(--up); } .down-txt { color: var(--down); }
+  /* 의미별 글자색: 숫자 / 가격 출처 / z 부호 / 종목 / 동작 / 흐린 보조 글자 */
+  .num { color: var(--num); font-variant-numeric: tabular-nums; }
+  .dim { color: var(--ink-2); }
+  .src-toss { color: var(--src-toss); } .src-yahoo { color: var(--src-yahoo); }
+  .src-binance { color: var(--src-binance); }
+  .src-toss, .src-yahoo, .src-binance { font-weight: 600; }
+  .z-pos { color: var(--zpos); } .z-neg { color: var(--zneg); } .z-hot { font-weight: 700; }
+  .tk-SOXL, .tk-SOXS, .tk-SOXX, [class*="act-"] { font-weight: 600; }
+  .tk-SOXL { color: var(--up); } .tk-SOXS { color: var(--down); } .tk-SOXX { color: var(--accent); }
+  .act-OPEN { color: var(--up); } .act-CLOSE { color: var(--down); }
+  .act-SWITCH { color: var(--side); } .act-HOLD { color: var(--accent); }
+  .act-SKIPPED, .act-SMOKE, .act-NONE { color: var(--ink-2); }
   .flash { animation: flash 1s ease; }
   @keyframes flash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
   #err { display: none; }
@@ -70,13 +88,14 @@
 </style>
 </head>
 <body>
-  <h1>레짐 콘솔</h1>
+  <h1>SOXL/SOXS 봇 스테이터스</h1>
   <div class="sub" id="clock">불러오는 중…</div>
   <div class="warn" id="halt" style="display:none">⛔ 킬 스위치 켜짐 — 어떤 주문도 나가지 않습니다</div>
 
   <div class="card">
     <div class="row"><span class="label">SOXX</span><span id="market" class="pill flat">—</span></div>
-    <div class="row"><span class="big" id="price">—</span><span class="muted" id="marketDetail"></span></div>
+    <div class="row"><span><span class="big" id="price">—</span> <span class="muted" id="altPrice" style="font-size:12px"></span></span><span class="muted" id="marketDetail"></span></div>
+    <div class="muted" id="srcLine" style="margin-top:4px"></div>
     <hr class="divider">
     <div class="row"><span class="label">매매 레짐 (확정)</span>
       <span><span id="regime" class="pill flat">—</span> <span class="muted" id="streak"></span></span></div>
@@ -135,6 +154,13 @@
   }
   function flash(el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); }
 
+  var SRC_NAME = { toss: "토스", yahoo: "Yahoo", binance: "바이낸스" };
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
+  }
+  function sp(cls, text) { return '<span class="' + cls + '">' + esc(text) + "</span>"; }
+
   function render(d) {
     $("err").style.display = "none";
     $("clock").textContent = "미국 " + d.now.slice(11, 16) + " ET · 한국 " + d.now_kst.slice(11, 16) +
@@ -144,15 +170,21 @@
     var xx = d.quotes["SOXX"];
     $("price").textContent = xx ? "$" + xx.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : "—";
     pill($("market"), d.market.state, d.market.open ? "up" : "flat");
-    $("marketDetail").textContent = d.market.detail +
-      (d.quote_source === "yahoo" ? " · 시세 Yahoo(매매 중)" :
-       d.quote_source === "toss" ? " · 시세 토스" : "");
+    $("marketDetail").textContent = d.market.detail;
+    var altPx = d.alt_quotes && d.alt_quotes.quotes.SOXX;
+    $("altPrice").innerHTML = altPx ?
+      sp("src-" + d.alt_quotes.source, SRC_NAME[d.alt_quotes.source] || "?") + " " +
+      sp("num", "$" + altPx.toFixed(2)) : "";
+    $("srcLine").innerHTML = (d.quote_reliable ? "가격 출처: " : "⚠️ 가격 출처: ") +
+      sp("src-" + d.quote_source, d.quote_name) + (d.quote_note ? " " + sp("dim", d.quote_note) : "");
 
     pill($("regime"), d.settled.regime, REG[d.settled.regime]);
     if (lastRegime !== null && lastRegime !== d.settled.regime) flash($("regime").parentElement);
     lastRegime = d.settled.regime;
     $("streak").textContent = d.settled.date + " 종가 기준";
-    $("z").textContent = (d.settled.z > 0 ? "+" : "") + d.settled.z.toFixed(2);
+    $("z").innerHTML = sp((d.settled.z >= 0 ? "z-pos" : "z-neg") +
+      (Math.abs(d.settled.z) >= d.params.entry_z ? " z-hot" : ""),
+      (d.settled.z > 0 ? "+" : "") + d.settled.z.toFixed(2));
 
     if (d.live && d.live.regime !== d.settled.regime) {
       $("liveRow").style.display = "flex";
@@ -167,15 +199,18 @@
 
     if (d.position) {
       $("posCard").style.display = "block"; $("noPosCard").style.display = "none";
-      pill($("posTicker"), d.position.ticker, "accent");
+      pill($("posTicker"), d.position.ticker,
+           d.position.ticker === "SOXL" ? "up" : (d.position.ticker === "SOXS" ? "down" : "accent"));
       var pct = d.position.unrealized;
       $("posPnlPct").textContent = fmtPct(pct);
       $("posPnlPct").className = "big " + (pct >= 0 ? "up-txt" : "down-txt");
       $("posPnl").textContent = d.position.pnl !== null ?
         (d.position.pnl >= 0 ? "+" : "") + "$" + d.position.pnl.toLocaleString() : "";
-      $("posDetail").textContent = d.position.shares + "주 @ $" + d.position.entry.toFixed(2) +
-        " · 현재 " + (d.position.price ? "$" + d.position.price.toFixed(3) : "—") +
-        " · " + d.position.opened.slice(0, 10) + " 진입";
+      $("posDetail").innerHTML = sp("num", d.position.shares + "주") + " @ " +
+        sp("num", "$" + d.position.entry.toFixed(2)) + " · 현재 " +
+        (d.position.price ? sp("num", "$" + d.position.price.toFixed(3)) +
+          " (" + sp("src-" + d.quote_source, SRC_NAME[d.quote_source] || "?") + ")" : "—") +
+        " · " + sp("dim", d.position.opened.slice(0, 10) + " 진입");
       var rows = "";
       if (d.gaps) {
         for (var k in d.gaps) {
@@ -198,9 +233,10 @@
 
     var body = "";
     (d.orders || []).forEach(function (o) {
-      body += "<tr><td>" + (o.timestamp || "").slice(5, 16) + "</td><td>" + o.action +
-              "</td><td>" + o.ticker + "</td><td>" +
-              (o.fill_price && o.fill_price !== "0" ? "$" + parseFloat(o.fill_price).toFixed(2) : "미체결") +
+      body += "<tr><td>" + sp("dim", (o.timestamp || "").slice(5, 16)) + "</td><td>" +
+              sp("act-" + o.action, o.action) + "</td><td>" + sp("tk-" + o.ticker, o.ticker) + "</td><td>" +
+              (o.fill_price && o.fill_price !== "0" ? sp("num", "$" + parseFloat(o.fill_price).toFixed(2))
+                                                    : sp("dim", "미체결")) +
               "</td></tr>";
     });
     $("ordersBody").innerHTML = body;

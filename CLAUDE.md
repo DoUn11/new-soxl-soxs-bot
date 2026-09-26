@@ -29,13 +29,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     조용히 멈추는 것이 이 봇의 최대 위험이라 감시를 따로 둡니다.
   - **개장전 요약은 짧게 유지하세요** (`notifier.format_brief`, 사용자 요청 2026-09-24).
     행동 / 포지션(현금이면 금액, 주식이면 평가금액) / 레짐 **셋만** 넣습니다. 매일 밤
-    오는 알림이라 길어지면 안 읽게 됩니다. 자세한 건 레짐 콘솔에서 봅니다.
+    오는 알림이라 길어지면 안 읽게 됩니다. 자세한 건 SOXL/SOXS 봇 스테이터스(구 레짐 콘솔)에서 봅니다.
     `--brief` 는 **읽기 전용**이고 `--execute/--live` 분기 뒤에 있어 주문 경로로 갈 수 없습니다.
   - 사이징 자산은 **봇이 굴리는 포지션 평가금액**입니다(아래 '사이징 자산' 항목).
     손으로 갱신할 필요가 없어졌습니다.
 - `journal/trades.csv`에 실거래 기록이 쌓이는 중입니다. 백업은 `trades.csv.bak-*` 입니다.
 - git 저장소가 **아닙니다**. 파일을 지우면 복구할 수 없습니다.
-- 린트 설정은 없습니다. 테스트는 `tests/test_executor.py`(72건)와 `tests/test_consistency.py` 둘입니다.
+- 린트 설정은 없습니다. 테스트는 `tests/test_executor.py`(77건)와 `tests/test_consistency.py` 둘입니다.
 - `.venv`는 `../soxl-soxs-bot/.venv` 심볼릭 링크입니다. Python 3.9라
   `X | None` 문법은 `from __future__ import annotations` 덕분에 어노테이션에서만 됩니다.
 
@@ -49,13 +49,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./.venv/bin/python src/alerter.py --execute           # 안전장치 검사 + 드라이런
 ./.venv/bin/python src/alerter.py --live --notify     # 실제 매매 + 보고 (되돌릴 수 없음)
 ./.venv/bin/python src/alerter.py --toss-accounts     # accountSeq 확인
-./.venv/bin/python src/alerter.py --slippage          # 신호가 대비 체결가
+./.venv/bin/python src/alerter.py --slippage          # 신호가 대비 체결가 (수동·오염 기록은 제외하고 목록으로 표시)
 ./.venv/bin/python src/alerter.py --brief             # 개장전 요약 알림 (읽기 전용)
 ./.venv/bin/python scripts/build_dashboard.py         # 대시보드 데이터+HTML 생성
-./scripts/console_launch.sh                           # 레짐 콘솔 (크롬 앱 창) = 레짐콘솔.app
+./scripts/console_launch.sh                           # SOXL/SOXS 봇 스테이터스 (크롬 앱 창) = SOXL-SOXS 봇 스테이터스.app
 ./.venv/bin/python src/watchdog.py --report --no-notify  # 주간 요약을 화면으로
-./scripts/serve.sh                                    # 레짐 콘솔 웹 버전 — 폰에서 봐야 할 때만
-./.venv/bin/python tests/test_executor.py             # 안전장치·멱등성·부분봉·체결시각·자본하한 72건
+./scripts/serve.sh                                    # SOXL/SOXS 봇 스테이터스 웹 버전 — 폰에서 봐야 할 때만
+./.venv/bin/python tests/test_executor.py             # 안전장치·멱등성·부분봉·체결시각·자본하한 77건
 ./scripts/daily_trade.sh --execute                    # 무인 실행 스크립트 드라이런
 ./.venv/bin/python tests/test_consistency.py          # 백테스트=알리미 판단 일치
 ./.venv/bin/python -m compileall src                  # 문법 점검
@@ -111,6 +111,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   옮기려면 6.6/4.6 표를 먼저 보세요.
 - **분할매수는 적용하지 않았습니다** (2026-09-23, STRATEGY.md 4.7). 9개 조합 전부
   검증 구간이 기존보다 나빴습니다. 기각 목록 참고.
+- **노출별 수치** (2026-09-25, 5.2): 100/70/50/30% = 5년 41.75/17.55/8.99/4.20배,
+  MDD -60.9/-47.8/-37.2/-24.5%. 낮춰도 위험조정 수익은 좋아지지 않습니다(버틸 낙폭의
+  선택). **노출 비중은 사용자 결정 대기 중**입니다(9장).
+- **세후는 연말 즉시 차감 가정**입니다. 다음 해 5월 납부로 바꾸면 16년 59.79→65.59배
+  (5.4). 5년은 추가입금 때문에 시뮬레이션이 맞지 않아 미측정입니다.
 - 위 수치는 규칙을 바꾸면 전부 무효입니다. 바꿨으면 다시 돌려서 갱신하세요.
 
 ## 아키텍처에서 알아둘 점
@@ -201,11 +206,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **미완성 당일 봉을 쓰면 안 됩니다.** `data_fetcher.drop_incomplete_bar()` 가
   정규장 중 호출 시 당일 봉을 잘라냅니다. 주문 시간대가 곧 당일 봉 미완성 시간대라
   이 가드가 없으면 장중 가격을 종가로 착각합니다.
-- **레짐 콘솔은 둘입니다. 상태 계산은 `server.build_state()` 한 곳에만 있습니다.**
+- **SOXL/SOXS 봇 스테이터스(구 레짐 콘솔)은 둘입니다. 상태 계산은 `server.build_state()` 한 곳에만 있습니다.**
   대시보드(`results/dashboard.html`, cron이 1시간마다 만드는 스냅샷)와는 다른 물건으로,
   둘 다 15초마다 스스로 갱신하는 **읽기 전용** 도구입니다. **둘 다 주문 기능이 없습니다**
   — 안전장치를 우회하는 두 번째 주문 경로를 만들지 않기 위해서입니다.
-  - **레짐콘솔.app / `scripts/console_launch.sh` (평소에 쓰는 쪽)**: 로컬 서버를 띄우고
+  - **SOXL-SOXS 봇 스테이터스.app / `scripts/console_launch.sh` (평소에 쓰는 쪽)**: 로컬 서버를 띄우고
     **크롬 `--app` 창**으로 엽니다. 탭·주소창이 없어 데스크톱 앱처럼 보입니다.
     - **⚠️ tkinter로 만들지 마세요. 이미 해봤고 실패했습니다** (`src/gui_console.py`,
       지우지 않고 남겨 둠). 이 맥(macOS 26.5.2)의 파이썬은 CommandLineTools 3.9뿐이고
@@ -230,6 +235,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
       동안 락을 만들고, 콘솔은 그 동안 Yahoo로 물러납니다(화면에 "시세 Yahoo(매매 중)"
       으로 표시). 락은 `trap ... EXIT` 로 어떤 경로로 끝나든 지워집니다.
       **조회 정확도보다 주문이 우선입니다.**
+  - **휴장일(주말·NYSE 휴장일)에는 시세를 바이낸스 TradFi 선물에서 받습니다** (2026-09-26,
+    `server._quotes_binance`). 휴장 중 토스 시세는 금요일 애프터장의 마지막 체결가에서 멈춰 있기 때문입니다(2026-09-26 SOXS 토스 32.35 vs 바이낸스 32.54).
+    SOXL·SOXS는 SOXLUSDT/SOXSUSDT를 그대로 쓰고, **SOXX는 바이낸스에 없어서** SOXL·SOXS의
+    변화율을 3으로 나눠 환산한 **추정값**입니다(SMH 선물로 추정하면 방향이 어긋나 버렸습니다).
+    **⚠️ 표시 전용입니다. 신호·주문·기준가에 쓰지 마세요** — 사고팔 수 있는 가격이 아니고
+    주말 가격이 월요일 시가를 맞히는 정도도 동전 던지기 수준입니다(하이퍼리퀴드 관찰 50.7%).
+    **바이낸스가 주 가격일 때는 비교 시세를 SOXX 가격 옆에 작게 보여줍니다**(`alt_quotes`) — **토스 우선, 못 받을 때만 Yahoo**, 둘을 함께 쓰지 않습니다. 보유 %는 바이낸스 값만 씁니다.
+    바이낸스가 안 되면 토스→Yahoo로 물러납니다. **`NYSE_HOLIDAYS_2026` 은 해가 바뀌면
+    갱신해야 합니다.** 화면에 "시세 바이낸스 선물(휴장 참고용)"으로 출처를 밝힙니다.
+  - **콘솔 화면은 가격 출처를 밝힙니다** (`server.QUOTE_SOURCES`): 토스증권 실호가 / Yahoo /
+    바이낸스 선물. 실호가가 아니면 ⚠️가 붙습니다. 출처를 숨기지 마세요.
+  - **`console_launch.sh` 는 코드가 서버보다 새로우면 서버를 자동 재시작합니다**(2026-09-26).
+    예전에는 서버가 떠 있으면 재사용만 해서 며칠 전 코드로 돌았습니다. 창 없이 시험하려면
+    `CONSOLE_NO_WINDOW=1`. **그래도 이미 열려 있는 창의 주소는 그대로**라 새로고침만 하면 됩니다.
   - **웹 버전 (폰에서 볼 때만)**: `scripts/serve.sh` → `src/server.py`. `http.server`만 쓰고
     공용 venv에 웹 프레임워크를 넣지 않았습니다. 접속 토큰은 `config/server_token`에
     있고 맥과 폰이 같은 와이파이에 있어야 합니다.
@@ -306,6 +325,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - **반대로 롱 쪽은 이미 그렇게 동작합니다** — 횡보 롱 보유 중 상승 전환은 목표가
     그대로 long이라 `RESTAMP`(매매 없이 규칙 갱신)이 됩니다. 끄면 나빠집니다
     (전체 159→152배). 같은 제안이 다시 오면 이 구분부터 짚으세요.
+- **거부권을 한쪽만 / 조건부로 완화** (2026-09-25, STRATEGY.md 4.6.1). "있으나 없으나
+  별 차이 없으니 효과적일 때만 차단하자"를 방향별·거래별로 분해 — 롱만/숏만 차단은 모든
+  구간에서 양방향보다 나쁘고(5년 36.33/31.17 vs 41.75배), 차단된 진입은 5년에 15건
+  복리 ×0.73이라 **빼는 것이 개선**입니다. 다만 16년 우위는 2020-03 코로나 롱 한 건
+  (-59.3% vs -27.4%)에 크게 기댑니다. **거부권은 청산도 바꿉니다** — 재진입을 막아
+  `RESTAMP` 를 `CLOSE` 로 만듭니다. 조건부 완화 근거는 5건 안팎이라 하지 않습니다.
+  "더 좋은 진입이 오면 교체" 는 이미 동작합니다(같은 날 SWITCH).
 - **분할매수** (2026-09-23, STRATEGY.md 4.7). z 피라미딩·시간분할·물타기 3방식 × 횡보만·
   횡보+하락·전체 3범위 = 9조합을 최근 5년 학습/검증으로 측정 — **전부 검증 구간이
   기존(26.40배)보다 나쁨**(14.86~20.98배, 최악은 all/adverse_move 5.93배). 이 전략은

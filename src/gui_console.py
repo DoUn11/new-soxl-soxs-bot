@@ -5,7 +5,7 @@
 하나도 렌더링되지 않는다** — 네이티브 위젯(tk.Button)만 보인다. 위젯 배치·색은 멀쩡해서
 (측정하면 전부 mapped, 대비도 정상) 원인을 찾기 어려웠다.
 
-그래서 콘솔은 **크롬 앱 창**으로 간다: `scripts/console_launch.sh` (= 레짐콘솔.app).
+그래서 콘솔은 **크롬 앱 창**으로 간다: `scripts/console_launch.sh` (= SOXL-SOXS 봇 스테이터스.app).
 이 파일은 지우지 않고 남겨 뒀다 — 나중에 Tk 8.6 이상인 파이썬(brew python@3.13 +
 python-tk 등)을 깔면 그대로 살아난다. 다크모드 팔레트까지 맞춰 둔 상태다.
 
